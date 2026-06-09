@@ -350,35 +350,29 @@
 <body>
 
 <!-- ── HUD & BARTENDER ── -->
-<div id="top-bar" style="display: none; position: absolute; top: 15px; left: 20px; right: 20px; z-index: 100; pointer-events: none; align-items: stretch; gap: 15px;">
-  
+<div id="top-bar" style="display: none; position: absolute; top: 15px; left: 20px; right: 20px; z-index: 100; pointer-events: none; align-items: center; gap: 15px;">
   <!-- Barista Photo -->
   <img src="barista_pixel_art.png" style="width: 60px; height: 60px; border-radius: 8px; border: 2px solid #f4a460; object-fit: cover; background: rgba(0,0,0,0.6);">
-
-  <!-- Right Section -->
-  <div style="display: flex; flex-direction: column; flex: 1; justify-content: space-between;">
-    <!-- Row 1: Stats -->
-    <div id="hud" style="display: flex; gap: 20px; pointer-events: auto;">
-      <div class="hud-block">
-        <div class="hud-label">Punti</div>
-        <div class="hud-value" id="score-display">0</div>
-      </div>
-      <div class="hud-block">
-        <div class="hud-label">Vite</div>
-        <div id="lives-display"></div>
-      </div>
-      <div class="hud-block">
-        <div class="hud-label">Migliore</div>
-        <div class="hud-value" id="best-display">0</div>
-      </div>
-    </div>
-    
-    <!-- Row 2: Scrolling phrases -->
-    <div id="cheering-container" style="display: none; background: rgba(0,0,0,0.6); border: 2px solid #8b5a2b; border-radius: 8px; height: 26px; overflow: hidden; position: relative; margin-top: auto;">
-      <div id="cheering-text" style="position: absolute; white-space: nowrap; font-family: 'Press Start 2P', monospace; font-size: 10px; color: #ffcc00; line-height: 22px;"></div>
-    </div>
+  <!-- Cheering phrases -->
+  <div id="cheering-container" style="display: none; flex: 1; background: rgba(0,0,0,0.6); border: 2px solid #8b5a2b; border-radius: 8px; height: 50px; overflow: hidden; position: relative;">
+    <div id="cheering-text" style="position: absolute; white-space: nowrap; font-family: 'Press Start 2P', monospace; font-size: 14px; color: #ffcc00; line-height: 50px;"></div>
   </div>
+</div>
 
+<!-- ── GAME STATS ── -->
+<div id="hud" style="display: none; position: absolute; top: 110px; left: 20px; right: 20px; z-index: 100; pointer-events: auto; justify-content: space-between; align-items: center;">
+  <div class="hud-block">
+    <div class="hud-label">Punti</div>
+    <div class="hud-value" id="score-display">0</div>
+  </div>
+  <div class="hud-block">
+    <div class="hud-label">Vite</div>
+    <div id="lives-display"></div>
+  </div>
+  <div class="hud-block">
+    <div class="hud-label">Migliore</div>
+    <div class="hud-value" id="best-display">0</div>
+  </div>
 </div>
 <div id="level-badge">LIVELLO 1</div>
 <div id="combo"></div>
@@ -980,6 +974,7 @@ function startGame() {
   document.getElementById('gameover-overlay').classList.add('hidden');
   
   document.getElementById('top-bar').style.display = 'flex';
+  document.getElementById('hud').style.display = 'flex';
   document.getElementById('btn-pause').style.display = 'block';
   const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
   if (isMobile) {
@@ -1350,6 +1345,7 @@ function gameOver() {
   stopCheering();
   
   document.getElementById('top-bar').style.display = 'none';
+  document.getElementById('hud').style.display = 'none';
   document.getElementById('btn-pause').style.display = 'none';
   document.getElementById('mobile-controls').style.display = 'none';
   
