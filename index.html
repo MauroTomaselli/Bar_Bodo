@@ -338,6 +338,9 @@
       0% { transform: translateX(250px); }
       100% { transform: translateX(-100%); }
     }
+    .scroll-anim {
+      animation: scrollText 12s linear forwards;
+    }
   </style>
 </head>
 <body>
@@ -345,10 +348,10 @@
 <!-- ── HUD & BARTENDER ── -->
 <div id="top-bar" style="position: absolute; top: 15px; left: 20px; right: 20px; display: flex; justify-content: space-between; align-items: flex-start; z-index: 100; pointer-events: none;">
   <!-- Bartender Photo + Cheering text -->
-  <div style="display: flex; gap: 10px; align-items: center; background: rgba(0,0,0,0.6); padding: 5px 10px; border: 2px solid #8b5a2b; border-radius: 8px;">
+  <div id="cheering-container" style="display: none; gap: 10px; align-items: center; background: rgba(0,0,0,0.6); padding: 5px 10px; border: 2px solid #8b5a2b; border-radius: 8px;">
     <img src="barista_pixel_art.png" style="width: 45px; height: 45px; border-radius: 5px; border: 2px solid #f4a460; object-fit: cover;">
     <div style="width: 250px; height: 30px; overflow: hidden; position: relative;">
-      <div id="cheering-text" style="position: absolute; white-space: nowrap; font-family: 'Press Start 2P', monospace; font-size: 10px; color: #ffcc00; line-height: 30px; animation: scrollText 12s linear infinite;">DAI BODO! SERVI QUELLA BIRRA!</div>
+      <div id="cheering-text" style="position: absolute; white-space: nowrap; font-family: 'Press Start 2P', monospace; font-size: 10px; color: #ffcc00; line-height: 30px;">DAI BODO! SERVI QUELLA BIRRA!</div>
     </div>
   </div>
 
@@ -909,10 +912,38 @@ const cheeringPhrases = [
   "Mangerei un piatto di Marubini!"
 ];
 
-document.getElementById('cheering-text').addEventListener('animationiteration', (e) => {
-  const randomIndex = Math.floor(Math.random() * cheeringPhrases.length);
-  e.target.textContent = cheeringPhrases[randomIndex];
+let cheeringTimeout;
+document.getElementById('cheering-text').addEventListener('animationend', (e) => {
+  const el = e.target;
+  el.classList.remove('scroll-anim');
+  
+  clearTimeout(cheeringTimeout);
+  cheeringTimeout = setTimeout(() => {
+    if (!gameRunning || isPaused) return;
+    const randomIndex = Math.floor(Math.random() * cheeringPhrases.length);
+    el.textContent = cheeringPhrases[randomIndex];
+    void el.offsetWidth; // trigger reflow
+    el.classList.add('scroll-anim');
+  }, 4000); // 4 seconds interval between phrases
 });
+
+function startCheering() {
+  document.getElementById('cheering-container').style.display = 'flex';
+  const el = document.getElementById('cheering-text');
+  el.classList.remove('scroll-anim');
+  clearTimeout(cheeringTimeout);
+  
+  const randomIndex = Math.floor(Math.random() * cheeringPhrases.length);
+  el.textContent = cheeringPhrases[randomIndex];
+  void el.offsetWidth;
+  el.classList.add('scroll-anim');
+}
+
+function stopCheering() {
+  document.getElementById('cheering-container').style.display = 'none';
+  document.getElementById('cheering-text').classList.remove('scroll-anim');
+  clearTimeout(cheeringTimeout);
+}
 
 let isPaused = false;
 function togglePause() {
@@ -923,10 +954,25 @@ function togglePause() {
     document.getElementById('level-flash').textContent = 'IN PAUSA';
     document.getElementById('level-flash').style.opacity = 1;
     document.getElementById('level-flash').style.transition = 'none';
+    document.getElementById('cheering-text').style.animationPlayState = 'paused';
   } else {
     document.getElementById('btn-pause').textContent = 'PAUSA';
     document.getElementById('level-flash').style.opacity = 0;
     document.getElementById('level-flash').style.transition = 'opacity 0.5s';
+    document.getElementById('cheering-text').style.animationPlayState = 'running';
+    
+    // Resume interval if it was waiting
+    if (!document.getElementById('cheering-text').classList.contains('scroll-anim')) {
+      clearTimeout(cheeringTimeout);
+      cheeringTimeout = setTimeout(() => {
+        if (!gameRunning || isPaused) return;
+        const el = document.getElementById('cheering-text');
+        const randomIndex = Math.floor(Math.random() * cheeringPhrases.length);
+        el.textContent = cheeringPhrases[randomIndex];
+        void el.offsetWidth;
+        el.classList.add('scroll-anim');
+      }, 500);
+    }
   }
 }
 
@@ -946,6 +992,7 @@ function startGame() {
   document.getElementById('start-overlay').classList.add('hidden');
   document.getElementById('gameover-overlay').classList.add('hidden');
   gameRunning = true;
+  startCheering();
 
   if (frameId) cancelAnimationFrame(frameId);
   clock.start();
@@ -1305,6 +1352,7 @@ function flashCustomerAngry(mesh) {
 // ── GAME OVER ──────────────────────────────────────────
 function gameOver() {
   gameRunning = false;
+  stopCheering();
   document.getElementById('final-score').textContent    = `PUNTEGGIO: ${score.toLocaleString()}`;
   document.getElementById('best-score-display').textContent = `MIGLIORE: ${bestScore.toLocaleString()}`;
   document.getElementById('gameover-overlay').classList.remove('hidden');
