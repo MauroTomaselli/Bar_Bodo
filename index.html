@@ -337,10 +337,6 @@
     @keyframes scrollText {
       0% { transform: translateX(250px); }
       100% { transform: translateX(-100%); }
-    }
-    .scroll-anim {
-      animation: scrollText 12s linear forwards;
-    }
   </style>
 </head>
 <body>
@@ -348,11 +344,9 @@
 <!-- ── HUD & BARTENDER ── -->
 <div id="top-bar" style="display: none; position: absolute; top: 15px; left: 20px; right: 20px; justify-content: space-between; align-items: flex-start; z-index: 100; pointer-events: none;">
   <!-- Bartender Photo + Cheering text -->
-  <div id="cheering-container" style="display: none; gap: 10px; align-items: center; background: rgba(0,0,0,0.6); padding: 5px 10px; border: 2px solid #8b5a2b; border-radius: 8px;">
-    <img src="barista_pixel_art.png" style="width: 45px; height: 45px; border-radius: 5px; border: 2px solid #f4a460; object-fit: cover;">
-    <div style="width: 250px; height: 30px; overflow: hidden; position: relative;">
-      <div id="cheering-text" style="position: absolute; white-space: nowrap; font-family: 'Press Start 2P', monospace; font-size: 10px; color: #ffcc00; line-height: 30px;">DAI BODO! SERVI QUELLA BIRRA!</div>
-    </div>
+  <div id="cheering-container" style="display: none; gap: 10px; align-items: center; background: rgba(0,0,0,0.6); padding: 8px 12px; border: 2px solid #8b5a2b; border-radius: 8px; max-width: 300px;">
+    <img src="barista_pixel_art.png" style="width: 45px; height: 45px; border-radius: 5px; border: 2px solid #f4a460; object-fit: cover; flex-shrink: 0;">
+    <div id="cheering-text" style="font-family: 'Press Start 2P', monospace; font-size: 9px; color: #ffcc00; line-height: 1.5; word-wrap: break-word; text-align: left;">DAI BODO! SERVI QUELLA BIRRA!</div>
   </div>
 
   <!-- HUD Stats -->
@@ -378,7 +372,7 @@
 <div id="level-flash"></div>
 
 <!-- ── PAUSE BUTTON ── -->
-<button id="btn-pause" style="display: none; position: absolute; top: 70px; right: 20px; z-index: 1000; font-size: 16px; padding: 10px 15px; font-weight: bold; background: rgba(139, 90, 43, 0.9); border: 3px solid #3d2010; color: white; cursor: pointer; font-family: 'Press Start 2P', monospace;">PAUSA</button>
+<button id="btn-pause" style="display: none; position: absolute; bottom: 130px; left: 20px; z-index: 1000; font-size: 16px; padding: 10px 15px; font-weight: bold; background: rgba(139, 90, 43, 0.9); border: 3px solid #3d2010; color: white; cursor: pointer; font-family: 'Press Start 2P', monospace;">PAUSA</button>
 
 <!-- ── MOBILE CONTROLS ── -->
 <div id="mobile-controls" style="display: none; position: absolute; bottom: 20px; width: 100%; justify-content: space-between; padding: 0 20px; box-sizing: border-box; z-index: 1000; pointer-events: none;">
@@ -910,37 +904,25 @@ const cheeringPhrases = [
   "Mangerei un piatto di Marubini!"
 ];
 
-let cheeringTimeout;
-document.getElementById('cheering-text').addEventListener('animationend', (e) => {
-  const el = e.target;
-  el.classList.remove('scroll-anim');
-  
-  clearTimeout(cheeringTimeout);
-  cheeringTimeout = setTimeout(() => {
-    if (!gameRunning || isPaused) return;
-    const randomIndex = Math.floor(Math.random() * cheeringPhrases.length);
-    el.textContent = cheeringPhrases[randomIndex];
-    void el.offsetWidth; // trigger reflow
-    el.classList.add('scroll-anim');
-  }, 4000); // 4 seconds interval between phrases
-});
+let cheeringInterval;
 
 function startCheering() {
   document.getElementById('cheering-container').style.display = 'flex';
-  const el = document.getElementById('cheering-text');
-  el.classList.remove('scroll-anim');
-  clearTimeout(cheeringTimeout);
+  clearInterval(cheeringInterval);
   
-  const randomIndex = Math.floor(Math.random() * cheeringPhrases.length);
-  el.textContent = cheeringPhrases[randomIndex];
-  void el.offsetWidth;
-  el.classList.add('scroll-anim');
+  const changePhrase = () => {
+    if (!gameRunning || isPaused) return;
+    const randomIndex = Math.floor(Math.random() * cheeringPhrases.length);
+    document.getElementById('cheering-text').textContent = cheeringPhrases[randomIndex];
+  };
+  
+  changePhrase();
+  cheeringInterval = setInterval(changePhrase, 4000);
 }
 
 function stopCheering() {
   document.getElementById('cheering-container').style.display = 'none';
-  document.getElementById('cheering-text').classList.remove('scroll-anim');
-  clearTimeout(cheeringTimeout);
+  clearInterval(cheeringInterval);
 }
 
 let isPaused = false;
@@ -952,25 +934,10 @@ function togglePause() {
     document.getElementById('level-flash').textContent = 'IN PAUSA';
     document.getElementById('level-flash').style.opacity = 1;
     document.getElementById('level-flash').style.transition = 'none';
-    document.getElementById('cheering-text').style.animationPlayState = 'paused';
   } else {
     document.getElementById('btn-pause').textContent = 'PAUSA';
     document.getElementById('level-flash').style.opacity = 0;
     document.getElementById('level-flash').style.transition = 'opacity 0.5s';
-    document.getElementById('cheering-text').style.animationPlayState = 'running';
-    
-    // Resume interval if it was waiting
-    if (!document.getElementById('cheering-text').classList.contains('scroll-anim')) {
-      clearTimeout(cheeringTimeout);
-      cheeringTimeout = setTimeout(() => {
-        if (!gameRunning || isPaused) return;
-        const el = document.getElementById('cheering-text');
-        const randomIndex = Math.floor(Math.random() * cheeringPhrases.length);
-        el.textContent = cheeringPhrases[randomIndex];
-        void el.offsetWidth;
-        el.classList.add('scroll-anim');
-      }, 500);
-    }
   }
 }
 
