@@ -119,6 +119,14 @@
       50%      { filter: drop-shadow(0 0 40px var(--gold)) drop-shadow(0 0 80px var(--beer)); }
     }
 
+    @keyframes scrollText {
+      0% { left: 100%; transform: translateX(0); }
+      100% { left: 0; transform: translateX(-100%); }
+    }
+    .scroll-anim {
+      animation: scrollText 15s linear forwards;
+    }
+    
     .subtitle {
       font-family: 'Press Start 2P', monospace;
       font-size: clamp(8px, 1.5vw, 12px);
@@ -342,28 +350,35 @@
 <body>
 
 <!-- ── HUD & BARTENDER ── -->
-<div id="top-bar" style="display: none; position: absolute; top: 15px; left: 20px; right: 20px; justify-content: space-between; align-items: flex-start; z-index: 100; pointer-events: none;">
-  <!-- Bartender Photo + Cheering text -->
-  <div id="cheering-container" style="display: none; gap: 10px; align-items: center; background: rgba(0,0,0,0.6); padding: 8px 12px; border: 2px solid #8b5a2b; border-radius: 8px; max-width: 300px;">
-    <img src="barista_pixel_art.png" style="width: 45px; height: 45px; border-radius: 5px; border: 2px solid #f4a460; object-fit: cover; flex-shrink: 0;">
-    <div id="cheering-text" style="font-family: 'Press Start 2P', monospace; font-size: 9px; color: #ffcc00; line-height: 1.5; word-wrap: break-word; text-align: left;">DAI BODO! SERVI QUELLA BIRRA!</div>
+<div id="top-bar" style="display: none; position: absolute; top: 15px; left: 20px; right: 20px; z-index: 100; pointer-events: none; align-items: stretch; gap: 15px;">
+  
+  <!-- Barista Photo -->
+  <img src="barista_pixel_art.png" style="width: 60px; height: 60px; border-radius: 8px; border: 2px solid #f4a460; object-fit: cover; background: rgba(0,0,0,0.6);">
+
+  <!-- Right Section -->
+  <div style="display: flex; flex-direction: column; flex: 1; justify-content: space-between;">
+    <!-- Row 1: Stats -->
+    <div id="hud" style="display: flex; gap: 20px; pointer-events: auto;">
+      <div class="hud-block">
+        <div class="hud-label">Punti</div>
+        <div class="hud-value" id="score-display">0</div>
+      </div>
+      <div class="hud-block">
+        <div class="hud-label">Vite</div>
+        <div id="lives-display"></div>
+      </div>
+      <div class="hud-block">
+        <div class="hud-label">Migliore</div>
+        <div class="hud-value" id="best-display">0</div>
+      </div>
+    </div>
+    
+    <!-- Row 2: Scrolling phrases -->
+    <div id="cheering-container" style="display: none; background: rgba(0,0,0,0.6); border: 2px solid #8b5a2b; border-radius: 8px; height: 26px; overflow: hidden; position: relative; margin-top: auto;">
+      <div id="cheering-text" style="position: absolute; white-space: nowrap; font-family: 'Press Start 2P', monospace; font-size: 10px; color: #ffcc00; line-height: 22px;"></div>
+    </div>
   </div>
 
-  <!-- HUD Stats -->
-  <div id="hud" style="display: flex; gap: 20px; align-items: center; pointer-events: auto; position: static;">
-    <div class="hud-block">
-      <div class="hud-label">Punti</div>
-      <div class="hud-value" id="score-display">0</div>
-    </div>
-    <div class="hud-block">
-      <div class="hud-label">Vite</div>
-      <div id="lives-display"></div>
-    </div>
-    <div class="hud-block">
-      <div class="hud-label">Migliore</div>
-      <div class="hud-value" id="best-display">0</div>
-    </div>
-  </div>
 </div>
 <div id="level-badge">LIVELLO 1</div>
 <div id="combo"></div>
@@ -421,12 +436,7 @@
 <!-- ── THREE.JS CANVAS ── -->
 <canvas id="gameCanvas"></canvas>
 
-<!-- ── MOBILE CONTROLS ── -->
-<div id="mobile-controls">
-  <button class="mob-btn" id="mob-up"   ontouchstart="mobileInput('up')"   onclick="mobileInput('up')">▲</button>
-  <button class="mob-btn mob-btn-tap" id="mob-tap" ontouchstart="mobileInput('tap')" onclick="mobileInput('tap')">🍺</button>
-  <button class="mob-btn" id="mob-down" ontouchstart="mobileInput('down')" onclick="mobileInput('down')">▼</button>
-</div>
+
 
 <!-- ── THREE.JS CDN ── -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.150.1/three.min.js"></script>
@@ -727,23 +737,15 @@ function createBartender() {
   apron.position.set(0, 0.75, 0.25);
   group.add(apron);
 
-  // Head (Textured with pixel art)
-  const headSize = 0.55;
-  const headGeo = new THREE.BoxGeometry(headSize, headSize, headSize);
-  
+  // Head (Textured sphere)
+  const headGeo = new THREE.SphereGeometry(0.35, 16, 16);
   const texLoader = new THREE.TextureLoader();
   const faceTex = texLoader.load('barista_pixel_art.png');
   faceTex.magFilter = THREE.NearestFilter;
   
-  const headMatSide = new THREE.MeshStandardMaterial({ color: 0xF4A060, roughness: 0.6 });
-  const headMatFront = new THREE.MeshStandardMaterial({ map: faceTex, roughness: 0.8 });
-  
-  // BoxGeometry materials: right, left, top, bottom, front(+Z), back(-Z)
-  const headMaterials = [
-    headMatSide, headMatSide, headMatSide, headMatSide, headMatFront, headMatSide
-  ];
-  
-  const head = new THREE.Mesh(headGeo, headMaterials);
+  const headMat = new THREE.MeshStandardMaterial({ map: faceTex, roughness: 0.6, color: 0xffffff });
+  const head = new THREE.Mesh(headGeo, headMat);
+  head.rotation.y = -Math.PI / 2; // Face the camera
   head.position.y = 1.65;
   group.add(head);
 
@@ -920,21 +922,26 @@ const cheeringPhrases = [
 let cheeringInterval;
 
 function startCheering() {
-  document.getElementById('cheering-container').style.display = 'flex';
+  document.getElementById('cheering-container').style.display = 'block';
   clearInterval(cheeringInterval);
   
   const changePhrase = () => {
     if (!gameRunning || isPaused) return;
+    const el = document.getElementById('cheering-text');
     const randomIndex = Math.floor(Math.random() * cheeringPhrases.length);
-    document.getElementById('cheering-text').textContent = cheeringPhrases[randomIndex];
+    el.classList.remove('scroll-anim');
+    el.textContent = cheeringPhrases[randomIndex];
+    void el.offsetWidth; // trigger reflow
+    el.classList.add('scroll-anim');
   };
   
   changePhrase();
-  cheeringInterval = setInterval(changePhrase, 4000);
+  cheeringInterval = setInterval(changePhrase, 45000); // 45 seconds interval
 }
 
 function stopCheering() {
   document.getElementById('cheering-container').style.display = 'none';
+  document.getElementById('cheering-text').classList.remove('scroll-anim');
   clearInterval(cheeringInterval);
 }
 
@@ -947,10 +954,12 @@ function togglePause() {
     document.getElementById('level-flash').textContent = 'IN PAUSA';
     document.getElementById('level-flash').style.opacity = 1;
     document.getElementById('level-flash').style.transition = 'none';
+    document.getElementById('cheering-text').style.animationPlayState = 'paused';
   } else {
     document.getElementById('btn-pause').textContent = 'PAUSA';
     document.getElementById('level-flash').style.opacity = 0;
     document.getElementById('level-flash').style.transition = 'opacity 0.5s';
+    document.getElementById('cheering-text').style.animationPlayState = 'running';
   }
 }
 
