@@ -334,6 +334,10 @@
       85% { opacity: 0; }
       100% { opacity: 0; }
     }
+    @keyframes scrollText {
+      0% { transform: translateX(250px); }
+      100% { transform: translateX(-100%); }
+    }
   </style>
 </head>
 <body>
@@ -343,8 +347,8 @@
   <!-- Bartender Photo + Cheering text -->
   <div style="display: flex; gap: 10px; align-items: center; background: rgba(0,0,0,0.6); padding: 5px 10px; border: 2px solid #8b5a2b; border-radius: 8px;">
     <img src="barista_pixel_art.png" style="width: 45px; height: 45px; border-radius: 5px; border: 2px solid #f4a460; object-fit: cover;">
-    <div style="width: 150px; height: 30px; overflow: hidden; position: relative;">
-      <div id="cheering-text" style="position: absolute; white-space: nowrap; font-family: 'Press Start 2P', monospace; font-size: 10px; color: #ffcc00; line-height: 30px; animation: scrollText 8s linear infinite;">DAI BODO! SERVI QUELLA BIRRA!</div>
+    <div style="width: 250px; height: 30px; overflow: hidden; position: relative;">
+      <div id="cheering-text" style="position: absolute; white-space: nowrap; font-family: 'Press Start 2P', monospace; font-size: 10px; color: #ffcc00; line-height: 30px; animation: scrollText 12s linear infinite;">DAI BODO! SERVI QUELLA BIRRA!</div>
     </div>
   </div>
 
@@ -894,6 +898,20 @@ function moveBartender(dir) {
   updateBartenderLane();
   // Snap any drinks on this lane that hit end
 }
+
+const cheeringPhrases = [
+  "DAI BODO! SERVI QUELLA BIRRA!",
+  "Viva la .....!",
+  "Sempre peggio!",
+  "Mi offri una grappa?",
+  "Che buono il panino con il cotechino !",
+  "Mangerei un piatto di Marubini!"
+];
+
+document.getElementById('cheering-text').addEventListener('animationiteration', (e) => {
+  const randomIndex = Math.floor(Math.random() * cheeringPhrases.length);
+  e.target.textContent = cheeringPhrases[randomIndex];
+});
 
 let isPaused = false;
 function togglePause() {
