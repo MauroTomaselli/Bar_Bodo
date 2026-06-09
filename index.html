@@ -727,10 +727,23 @@ function createBartender() {
   apron.position.set(0, 0.75, 0.25);
   group.add(apron);
 
-  // Head
-  const headGeo = new THREE.SphereGeometry(0.28, 8, 8);
-  const headMat = new THREE.MeshStandardMaterial({ color: 0xF4A060, roughness: 0.6 });
-  const head = new THREE.Mesh(headGeo, headMat);
+  // Head (Textured with pixel art)
+  const headSize = 0.55;
+  const headGeo = new THREE.BoxGeometry(headSize, headSize, headSize);
+  
+  const texLoader = new THREE.TextureLoader();
+  const faceTex = texLoader.load('barista_pixel_art.png');
+  faceTex.magFilter = THREE.NearestFilter;
+  
+  const headMatSide = new THREE.MeshStandardMaterial({ color: 0xF4A060, roughness: 0.6 });
+  const headMatFront = new THREE.MeshStandardMaterial({ map: faceTex, roughness: 0.8 });
+  
+  // BoxGeometry materials: right, left, top, bottom, front(+Z), back(-Z)
+  const headMaterials = [
+    headMatSide, headMatSide, headMatSide, headMatSide, headMatFront, headMatSide
+  ];
+  
+  const head = new THREE.Mesh(headGeo, headMaterials);
   head.position.y = 1.65;
   group.add(head);
 
