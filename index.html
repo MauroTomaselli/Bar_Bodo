@@ -1,0 +1,1307 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🍺 BAR BODO – Servili Velocemente!</title>
+  <meta name="description" content="Classic Tapper arcade game rebuilt with Three.js. Serve drinks before customers reach you!" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --gold: #FFD700;
+      --amber: #FF8C00;
+      --beer: #F4A61A;
+      --foam: #FFF5CC;
+      --neon-red: #FF2244;
+      --neon-blue: #00D4FF;
+      --neon-green: #39FF14;
+      --dark: #0a0612;
+      --panel: rgba(10,6,18,0.92);
+    }
+
+    body {
+      background: var(--dark);
+      color: #fff;
+      font-family: 'Orbitron', sans-serif;
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    /* ── CANVAS ── */
+    #gameCanvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    /* ── HUD ── */
+    #hud {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 24px;
+      background: linear-gradient(180deg, rgba(0,0,0,0.85) 0%, transparent 100%);
+      pointer-events: none;
+      z-index: 10;
+    }
+    .hud-block { text-align: center; }
+    .hud-label {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 9px;
+      color: var(--neon-blue);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+    .hud-value {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 20px;
+      color: var(--gold);
+      text-shadow: 0 0 10px var(--gold), 0 0 30px var(--amber);
+      margin-top: 4px;
+    }
+    #lives-display { display: flex; gap: 6px; margin-top: 4px; justify-content: center; }
+    .heart { font-size: 20px; filter: drop-shadow(0 0 6px #ff4466); }
+
+    /* ── LEVEL BADGE ── */
+    #level-badge {
+      position: fixed;
+      top: 90px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-family: 'Press Start 2P', monospace;
+      font-size: 11px;
+      color: var(--neon-green);
+      text-shadow: 0 0 8px var(--neon-green);
+      letter-spacing: 3px;
+      pointer-events: none;
+      z-index: 10;
+      opacity: 0.85;
+    }
+
+    /* ── COMBO ── */
+    #combo {
+      position: fixed;
+      top: 90px;
+      right: 24px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 13px;
+      color: var(--neon-red);
+      text-shadow: 0 0 10px var(--neon-red);
+      pointer-events: none;
+      z-index: 10;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    /* ── OVERLAY ── */
+    .overlay {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 20;
+      background: radial-gradient(ellipse at center, rgba(10,6,18,0.95) 0%, rgba(0,0,0,0.98) 100%);
+      transition: opacity 0.5s;
+    }
+    .overlay.hidden { opacity: 0; pointer-events: none; }
+
+    .arcade-title {
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(28px, 5vw, 52px);
+      text-align: center;
+      line-height: 1.4;
+      background: linear-gradient(135deg, var(--gold) 0%, var(--amber) 50%, var(--beer) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      filter: drop-shadow(0 0 20px var(--amber));
+      animation: titlePulse 2s ease-in-out infinite;
+      margin-bottom: 16px;
+    }
+    @keyframes titlePulse {
+      0%,100% { filter: drop-shadow(0 0 20px var(--amber)); }
+      50%      { filter: drop-shadow(0 0 40px var(--gold)) drop-shadow(0 0 80px var(--beer)); }
+    }
+
+    .subtitle {
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(8px, 1.5vw, 12px);
+      color: var(--neon-blue);
+      text-shadow: 0 0 8px var(--neon-blue);
+      letter-spacing: 4px;
+      margin-bottom: 50px;
+      animation: blink 1.2s step-end infinite;
+    }
+    @keyframes blink { 50% { opacity: 0; } }
+
+    .instructions {
+      background: rgba(255,215,0,0.06);
+      border: 1px solid rgba(255,215,0,0.2);
+      border-radius: 12px;
+      padding: 24px 32px;
+      margin-bottom: 40px;
+      max-width: 480px;
+      width: 90%;
+    }
+    .instructions h3 {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 10px;
+      color: var(--gold);
+      margin-bottom: 16px;
+      text-align: center;
+      letter-spacing: 2px;
+    }
+    .instructions p {
+      font-size: 12px;
+      color: #ccc;
+      margin-bottom: 8px;
+      line-height: 1.7;
+    }
+    .key {
+      display: inline-block;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 4px;
+      padding: 1px 7px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 9px;
+      color: var(--neon-green);
+    }
+
+    .btn-start {
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(12px, 2vw, 16px);
+      padding: 18px 48px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      background: linear-gradient(135deg, #FF8C00, #FFD700);
+      color: #0a0612;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      transition: all 0.2s;
+      box-shadow: 0 0 20px rgba(255,140,0,0.5), 0 4px 0 #994400;
+      animation: btnBounce 1.5s ease-in-out infinite;
+    }
+    .btn-start:hover {
+      transform: scale(1.06) translateY(-2px);
+      box-shadow: 0 0 40px rgba(255,215,0,0.7), 0 6px 0 #994400;
+    }
+    .btn-start:active {
+      transform: scale(0.97) translateY(2px);
+      box-shadow: 0 0 10px rgba(255,140,0,0.4), 0 2px 0 #994400;
+    }
+    @keyframes btnBounce {
+      0%,100% { transform: translateY(0); }
+      50%      { transform: translateY(-5px); }
+    }
+
+    /* ── GAME OVER overlay additions ── */
+    .final-score {
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(14px, 2.5vw, 22px);
+      color: var(--neon-red);
+      text-shadow: 0 0 15px var(--neon-red);
+      margin-bottom: 8px;
+    }
+    .best-score {
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(9px, 1.5vw, 13px);
+      color: var(--neon-green);
+      text-shadow: 0 0 8px var(--neon-green);
+      margin-bottom: 40px;
+    }
+
+    /* ── FLOATING SCORE POPS ── */
+    .score-pop {
+      position: fixed;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 16px;
+      color: var(--gold);
+      text-shadow: 0 0 10px var(--amber);
+      pointer-events: none;
+      z-index: 30;
+      animation: popFly 1s ease-out forwards;
+    }
+    @keyframes popFly {
+      0%   { opacity: 1; transform: translateY(0) scale(1); }
+      100% { opacity: 0; transform: translateY(-60px) scale(1.4); }
+    }
+
+    /* ── LEVEL UP FLASH ── */
+    #level-flash {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      z-index: 25;
+      opacity: 0;
+    }
+    .level-flash-text {
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(24px, 4vw, 40px);
+      color: var(--neon-green);
+      text-shadow: 0 0 30px var(--neon-green), 0 0 60px #00ff00;
+      letter-spacing: 4px;
+      animation: levelFlash 1.5s ease-out forwards;
+    }
+    @keyframes levelFlash {
+      0%   { opacity: 0; transform: scale(0.5); }
+      30%  { opacity: 1; transform: scale(1.1); }
+      70%  { opacity: 1; transform: scale(1); }
+      100% { opacity: 0; transform: scale(1.2); }
+    }
+
+    /* ── MOBILE CONTROLS ── */
+    #mobile-controls {
+      position: fixed;
+      bottom: 20px;
+      left: 0; right: 0;
+      display: none;
+      justify-content: center;
+      gap: 16px;
+      z-index: 15;
+    }
+    @media (max-width: 768px) { #mobile-controls { display: flex; } }
+    .mob-btn {
+      width: 64px; height: 64px;
+      border-radius: 50%;
+      border: 2px solid rgba(255,215,0,0.4);
+      background: rgba(255,140,0,0.2);
+      backdrop-filter: blur(8px);
+      color: var(--gold);
+      font-size: 24px;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .mob-btn:active { background: rgba(255,140,0,0.5); }
+    .mob-btn-tap {
+      width: 80px; height: 80px;
+      font-size: 28px;
+      background: rgba(255,50,50,0.25);
+      border-color: rgba(255,50,50,0.5);
+      color: #ff6688;
+    }
+
+    /* scanlines vibe */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0,0,0,0.08) 2px,
+        rgba(0,0,0,0.08) 4px
+      );
+      pointer-events: none;
+      z-index: 100;
+    }
+
+    /* Demo Animation */
+    .demo-anim {
+      width: 100%; height: 60px; background: rgba(0,0,0,0.4); 
+      border-radius: 8px; margin-bottom: 20px; position: relative;
+      overflow: hidden; border: 1px solid #444; box-shadow: inset 0 0 10px #000;
+    }
+    .demo-cust {
+      position: absolute; left: 10px; top: 15px; font-size: 26px;
+      animation: custAnim 2s infinite;
+    }
+    .demo-beer {
+      position: absolute; right: 40px; top: 18px; font-size: 20px;
+      animation: beerAnim 2s infinite;
+    }
+    .demo-bartender {
+      position: absolute; right: 10px; top: 15px; font-size: 26px;
+      animation: barAnim 2s infinite alternate ease-in-out;
+    }
+    @keyframes barAnim {
+      0% { transform: translateY(-4px); }
+      100% { transform: translateY(4px); }
+    }
+    @keyframes beerAnim {
+      0% { right: 40px; opacity: 1; }
+      80% { right: calc(100% - 40px); opacity: 1; }
+      85% { right: calc(100% - 30px); opacity: 0; }
+      100% { right: calc(100% - 30px); opacity: 0; }
+    }
+    @keyframes custAnim {
+      0% { transform: translateX(0); }
+      70% { transform: translateX(5px); }
+      80% { transform: translateX(5px) scale(1.3); opacity: 1; }
+      85% { opacity: 0; }
+      100% { opacity: 0; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── HUD ── -->
+<div id="hud">
+  <div class="hud-block">
+    <div class="hud-label">Punti</div>
+    <div class="hud-value" id="score-display">0</div>
+  </div>
+  <div class="hud-block">
+    <div class="hud-label">Vite</div>
+    <div id="lives-display"></div>
+  </div>
+  <div class="hud-block">
+    <div class="hud-label">Migliore</div>
+    <div class="hud-value" id="best-display">0</div>
+  </div>
+</div>
+<div id="level-badge">LIVELLO 1</div>
+<div id="combo"></div>
+
+<!-- ── LEVEL FLASH ── -->
+<div id="level-flash"></div>
+
+<!-- ── PAUSE BUTTON ── -->
+<button id="btn-pause" style="position: absolute; top: 20px; right: 20px; z-index: 1000; font-size: 16px; padding: 10px 15px; font-weight: bold; background: rgba(139, 90, 43, 0.9); border: 3px solid #3d2010; color: white; cursor: pointer; font-family: 'Press Start 2P', monospace;">PAUSA</button>
+
+<!-- ── MOBILE CONTROLS ── -->
+<div id="mobile-controls" style="display: none; position: absolute; bottom: 20px; width: 100%; justify-content: space-between; padding: 0 20px; box-sizing: border-box; z-index: 1000; pointer-events: none;">
+  <div style="pointer-events: auto; display: flex; align-items: flex-end;">
+    <button id="btn-serve" style="width: 90px; height: 90px; border-radius: 50%; font-size: 16px; font-weight: bold; background: rgba(139, 90, 43, 0.9); border: 4px solid #3d2010; color: white; cursor: pointer; box-shadow: 0 4px 8px rgba(0,0,0,0.5);">SPILLA</button>
+  </div>
+  <div style="display: flex; flex-direction: column; gap: 20px; pointer-events: auto;">
+    <button id="btn-up" style="width: 80px; height: 80px; border-radius: 50%; font-size: 30px; background: rgba(139, 90, 43, 0.9); border: 4px solid #3d2010; color: white; cursor: pointer; box-shadow: 0 4px 8px rgba(0,0,0,0.5);">⬆️</button>
+    <button id="btn-down" style="width: 80px; height: 80px; border-radius: 50%; font-size: 30px; background: rgba(139, 90, 43, 0.9); border: 4px solid #3d2010; color: white; cursor: pointer; box-shadow: 0 4px 8px rgba(0,0,0,0.5);">⬇️</button>
+  </div>
+</div>
+
+<!-- ── START OVERLAY ── -->
+<div class="overlay" id="start-overlay">
+  <img src="barista_pixel_art.png" alt="Barista" style="width: 220px; height: 220px; border-radius: 50%; border: 6px solid #8b5a2b; margin-bottom: 15px; box-shadow: 0 0 30px rgba(0,0,0,0.8); object-fit: cover; animation: floatAnim 3s infinite ease-in-out;">
+  <div class="arcade-title" style="font-size: 48px; margin-bottom: 5px;">🍺 BAR BODO</div>
+  <div class="subtitle" style="margin-bottom: 25px;">INSERISCI UN GETTONE PER GIOCARE</div>
+
+  <div class="demo-anim">
+    <div class="demo-cust">🙎‍♂️</div>
+    <div class="demo-beer">🍺</div>
+    <div class="demo-bartender">👨‍🍳</div>
+  </div>
+
+  <div class="instructions">
+    <h3>🕹 COME GIOCARE</h3>
+    <p><span class="key">W</span> <span class="key">S</span> – Muovi il barista su/giù</p>
+    <p><span class="key">SPAZIO</span> – Lancia una birra!</p>
+    <p>Servi i clienti prima che ti raggiungano!</p>
+    <p>Prendi i boccali vuoti per punti bonus 🏆</p>
+    <p>Non far arrivare i clienti al bancone! 💀</p>
+  </div>
+
+  <button class="btn-start" id="btn-start" onclick="this.blur(); startGame()">▶ GIOCA ORA</button>
+</div>
+
+<!-- ── GAME OVER OVERLAY ── -->
+<div class="overlay hidden" id="gameover-overlay">
+  <div class="arcade-title">FINE PARTITA</div>
+  <div class="final-score" id="final-score">PUNTEGGIO: 0</div>
+  <div class="best-score" id="best-score-display">MIGLIORE: 0</div>
+  <button class="btn-start" onclick="this.blur(); startGame()">▶ RIPROVA</button>
+</div>
+
+<!-- ── THREE.JS CANVAS ── -->
+<canvas id="gameCanvas"></canvas>
+
+<!-- ── MOBILE CONTROLS ── -->
+<div id="mobile-controls">
+  <button class="mob-btn" id="mob-up"   ontouchstart="mobileInput('up')"   onclick="mobileInput('up')">▲</button>
+  <button class="mob-btn mob-btn-tap" id="mob-tap" ontouchstart="mobileInput('tap')" onclick="mobileInput('tap')">🍺</button>
+  <button class="mob-btn" id="mob-down" ontouchstart="mobileInput('down')" onclick="mobileInput('down')">▼</button>
+</div>
+
+<!-- ── THREE.JS CDN ── -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.150.1/three.min.js"></script>
+
+<script>
+// ══════════════════════════════════════════════════════
+//  TAPPER ARCADE  –  Three.js Vanilla Implementation
+// ══════════════════════════════════════════════════════
+
+// ── CONSTANTS ──────────────────────────────────────────
+const NUM_LANES    = 4;
+const BAR_LENGTH   = 18;        // world units, bartender side = -BAR_LENGTH/2
+const BAR_WIDTH    = 1.2;
+const LANE_SPACING = 2.6;
+const BARTENDER_X  = -BAR_LENGTH / 2 + 0.5;
+const CUSTOMER_SPAWN_X = BAR_LENGTH / 2 - 0.5;
+
+const DRINK_SPEED_BASE = 10;
+const DRINK_RADIUS     = 0.28;
+const CUSTOMER_RADIUS  = 0.4;
+const MUG_RETURN_SPEED = 7;
+
+// Lane Y positions (centred at 0)
+const LANE_Y = Array.from({ length: NUM_LANES }, (_, i) =>
+  (NUM_LANES - 1) / 2 * LANE_SPACING - i * LANE_SPACING
+);
+
+// ── STATE ──────────────────────────────────────────────
+let scene, camera, renderer, clock;
+let score = 0, lives = 3, level = 1, combo = 0;
+let bestScore = parseInt(localStorage.getItem('tapperBest') || '0');
+let gameRunning = false;
+let bartenderLane = 1;        // current lane index (0‥NUM_LANES-1)
+let bartenderMesh;
+let barMeshes = [];
+let drinks    = [];           // { mesh, lane, x, catchable }
+let mugs      = [];           // { mesh, lane, x, dir }  – returning empty mugs
+let customers = [];           // { mesh, lane, x, speed, served, highlight }
+let particles = [];           // decorative bubbles / sparkles
+let spawnTimer   = 0;
+let spawnInterval = 3.5;
+let frameId;
+let inputCooldown = 0;
+
+// Key state
+const keys = {};
+document.addEventListener('keydown', e => { 
+  if (['Space', 'ArrowUp', 'ArrowDown'].includes(e.code)) e.preventDefault();
+  if (e.code === 'KeyP' || e.code === 'Escape') togglePause();
+  keys[e.code] = true; 
+  handleKeyPress(e.code); 
+});
+document.addEventListener('keyup',   e => { keys[e.code] = false; });
+
+function mobileInput(dir) {
+  if (!gameRunning) return;
+  if (dir === 'up')   moveBartender(-1);
+  if (dir === 'down') moveBartender(1);
+  if (dir === 'tap')  fireDrink();
+}
+
+// ── THREE.JS SETUP ─────────────────────────────────────
+function initThree() {
+  const canvas = document.getElementById('gameCanvas');
+  scene    = new THREE.Scene();
+  scene.background = new THREE.Color(0x0a0510);
+  scene.fog = new THREE.FogExp2(0x0a0510, 0.035);
+
+  // Camera & OS Detection
+  camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 200);
+  
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  if (isMobile) {
+    camera.position.set(0, 16, 22);
+    camera.fov = 75;
+    document.getElementById('mobile-controls').style.display = 'flex';
+  } else {
+    camera.position.set(0, 8, 16);
+    camera.fov = 55;
+  }
+  camera.updateProjectionMatrix();
+  camera.lookAt(0, 0, 0);
+
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+  clock = new THREE.Clock();
+
+  buildLighting();
+  buildEnvironment();
+  buildBars();
+
+  window.addEventListener('resize', onResize);
+}
+
+function buildLighting() {
+  // Ambient - warm
+  const ambient = new THREE.AmbientLight(0x4a2a18, 1.2);
+  scene.add(ambient);
+
+  // Warm overhead lantern lights
+  const warmLight = new THREE.DirectionalLight(0xFFCC66, 1.5);
+  warmLight.position.set(0, 10, 5);
+  warmLight.castShadow = true;
+  warmLight.shadow.mapSize.set(1024, 1024);
+  scene.add(warmLight);
+
+  // Left Lantern
+  const lanternLeft = new THREE.PointLight(0xffaa33, 1.5, 30);
+  lanternLeft.position.set(-8, 5, 0);
+  scene.add(lanternLeft);
+
+  // Right Lantern
+  const lanternRight = new THREE.PointLight(0xffaa33, 1.5, 30);
+  lanternRight.position.set(8, 5, 0);
+  scene.add(lanternRight);
+}
+
+function buildEnvironment() {
+  // Wooden Floor
+  const floorGeo = new THREE.PlaneGeometry(50, 30);
+  const floorMat = new THREE.MeshStandardMaterial({
+    color: 0x5c3a21,
+    roughness: 0.9,
+    metalness: 0.0,
+  });
+  const floor = new THREE.Mesh(floorGeo, floorMat);
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.y = -1.8;
+  floor.receiveShadow = true;
+  scene.add(floor);
+
+  // Back wall – wooden panels
+  const wallGeo = new THREE.PlaneGeometry(50, 12);
+  const wallMat = new THREE.MeshStandardMaterial({ color: 0x4a2a18, roughness: 1 });
+  const wall = new THREE.Mesh(wallGeo, wallMat);
+  wall.position.set(0, 4, -8);
+  scene.add(wall);
+
+  // Decorative wooden pillars
+  for (let i = -2; i <= 2; i++) {
+    addPillar(i * 8, -1.8, -7.8);
+  }
+
+  // Dust particles behind scene
+  addBackgroundParticles();
+}
+
+function addNeonStrip(x, y, z, w, h, color) {
+  const geo = new THREE.PlaneGeometry(w, h);
+  const mat = new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.set(x, y, z);
+  scene.add(mesh);
+}
+
+function addPillar(x, yBase, z) {
+  const geo  = new THREE.BoxGeometry(0.5, 8, 0.5);
+  const mat  = new THREE.MeshStandardMaterial({ color: 0x3d2010, roughness: 0.9, metalness: 0.0 });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.set(x, yBase + 4, z);
+  scene.add(mesh);
+}
+
+function addBackgroundParticles() {
+  const geo = new THREE.BufferGeometry();
+  const count = 600;
+  const pos = new Float32Array(count * 3);
+  for (let i = 0; i < count; i++) {
+    pos[i*3]   = (Math.random() - 0.5) * 40;
+    pos[i*3+1] = (Math.random() - 0.5) * 15;
+    pos[i*3+2] = (Math.random() - 0.5) * 10 - 5;
+  }
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const mat  = new THREE.PointsMaterial({ color: 0xFFAA44, size: 0.06, transparent: true, opacity: 0.5 });
+  const pts  = new THREE.Points(geo, mat);
+  scene.add(pts);
+}
+
+function buildBars() {
+  barMeshes.forEach(m => scene.remove(m));
+  barMeshes = [];
+
+  LANE_Y.forEach((laneY, li) => {
+    // Bar counter top (Oak)
+    const barGeo = new THREE.BoxGeometry(BAR_LENGTH, 0.18, BAR_WIDTH);
+    const barMat = new THREE.MeshStandardMaterial({
+      color: 0x8b5a2b,
+      roughness: 0.9,
+      metalness: 0.0,
+      emissive: 0x221100,
+    });
+    const bar = new THREE.Mesh(barGeo, barMat);
+    bar.position.set(0, 0, laneY);
+    bar.castShadow = true;
+    bar.receiveShadow = true;
+    scene.add(bar);
+    barMeshes.push(bar);
+
+    // Bar front face strip (Dark Wood)
+    const trimGeo = new THREE.BoxGeometry(BAR_LENGTH, 0.05, 0.05);
+    const trimMat = new THREE.MeshStandardMaterial({ color: 0x4a2a18, roughness: 1 });
+    const trim = new THREE.Mesh(trimGeo, trimMat);
+    trim.position.set(0, 0.12, laneY + BAR_WIDTH / 2 + 0.03);
+    scene.add(trim);
+    barMeshes.push(trim);
+
+    // Bar legs
+    for (let lx = -BAR_LENGTH/2+1; lx <= BAR_LENGTH/2-1; lx += 4) {
+      const legGeo = new THREE.CylinderGeometry(0.15, 0.15, 1.6, 6);
+      const legMat = new THREE.MeshStandardMaterial({ color: 0x4a2a18, roughness: 1 });
+      const leg = new THREE.Mesh(legGeo, legMat);
+      leg.position.set(lx, -0.9, laneY);
+      scene.add(leg);
+      barMeshes.push(leg);
+    }
+
+    // --- Saloon Doors on Right Entrance ---
+    const doorFrameMat = new THREE.MeshStandardMaterial({ color: 0x3d2010, roughness: 1 });
+    
+    // Left & Right pillars
+    const pGeo = new THREE.BoxGeometry(0.3, 5, 0.3);
+    const pLeft = new THREE.Mesh(pGeo, doorFrameMat);
+    pLeft.position.set(BAR_LENGTH/2 + 0.5, 1.6, laneY - 0.7);
+    scene.add(pLeft);
+    barMeshes.push(pLeft);
+
+    const pRight = new THREE.Mesh(pGeo, doorFrameMat);
+    pRight.position.set(BAR_LENGTH/2 + 0.5, 1.6, laneY + 0.7);
+    scene.add(pRight);
+    barMeshes.push(pRight);
+
+    // Top beam
+    const topGeo = new THREE.BoxGeometry(0.3, 0.3, 1.7);
+    const topBeam = new THREE.Mesh(topGeo, doorFrameMat);
+    topBeam.position.set(BAR_LENGTH/2 + 0.5, 3.95, laneY);
+    scene.add(topBeam);
+    barMeshes.push(topBeam);
+
+    // Swinging flaps
+    const flapGeo = new THREE.BoxGeometry(0.08, 1.8, 0.6);
+    const flapMat = new THREE.MeshStandardMaterial({ color: 0x654321, roughness: 0.9 });
+    
+    const flap1 = new THREE.Mesh(flapGeo, flapMat);
+    flap1.position.set(BAR_LENGTH/2 + 0.5, 1.5, laneY - 0.35);
+    flap1.rotation.y = -0.6; // Open inwards
+    scene.add(flap1);
+    barMeshes.push(flap1);
+
+    const flap2 = new THREE.Mesh(flapGeo, flapMat);
+    flap2.position.set(BAR_LENGTH/2 + 0.5, 1.5, laneY + 0.35);
+    flap2.rotation.y = 0.6; // Open inwards
+    scene.add(flap2);
+    barMeshes.push(flap2);
+
+    // --- Beer Barrel on Left (Bartender Area) ---
+    const barrelGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.8, 10);
+    const barrelMat = new THREE.MeshStandardMaterial({ color: 0x4a2a18, roughness: 1 });
+    const barrel = new THREE.Mesh(barrelGeo, barrelMat);
+    barrel.position.set(-BAR_LENGTH/2 - 0.5, 0.4, laneY);
+    barrel.rotation.z = Math.PI / 2;
+    scene.add(barrel);
+    barMeshes.push(barrel);
+    
+    // Barrel Metal Rings
+    const ringGeo = new THREE.CylinderGeometry(0.42, 0.42, 0.05, 12);
+    const ringMat = new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.8, roughness: 0.5 });
+    [-0.2, 0.2].forEach(rx => {
+      const ring = new THREE.Mesh(ringGeo, ringMat);
+      ring.position.copy(barrel.position);
+      ring.position.x += rx; 
+      ring.rotation.z = Math.PI / 2;
+      scene.add(ring);
+      barMeshes.push(ring);
+    });
+  });
+}
+
+// ── GAME CHARACTERS ────────────────────────────────────
+function createBartender() {
+  if (bartenderMesh) scene.remove(bartenderMesh);
+
+  const group = new THREE.Group();
+
+  // Body - White shirt
+  const bodyGeo = new THREE.CapsuleGeometry(0.3, 0.7, 4, 8);
+  const bodyMat = new THREE.MeshStandardMaterial({ color: 0xFFFFFF, roughness: 0.9 });
+  const body = new THREE.Mesh(bodyGeo, bodyMat);
+  body.position.y = 0.85;
+  group.add(body);
+
+  // Apron/Vest - Black
+  const apronGeo = new THREE.BoxGeometry(0.5, 0.65, 0.1);
+  const apronMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 });
+  const apron = new THREE.Mesh(apronGeo, apronMat);
+  apron.position.set(0, 0.75, 0.25);
+  group.add(apron);
+
+  // Head
+  const headGeo = new THREE.SphereGeometry(0.28, 8, 8);
+  const headMat = new THREE.MeshStandardMaterial({ color: 0xF4A060, roughness: 0.6 });
+  const head = new THREE.Mesh(headGeo, headMat);
+  head.position.y = 1.65;
+  group.add(head);
+
+  // Classic Bowtie
+  const bowGeo = new THREE.BoxGeometry(0.2, 0.1, 0.05);
+  const bowMat = new THREE.MeshStandardMaterial({ color: 0xaa0000, roughness: 0.9 });
+  const bow = new THREE.Mesh(bowGeo, bowMat);
+  bow.position.set(0, 1.45, 0.28);
+  group.add(bow);
+
+  // Arms (static pose)
+  const armGeo = new THREE.CapsuleGeometry(0.1, 0.35, 4, 6);
+  const armMat = new THREE.MeshStandardMaterial({ color: 0xFFFFFF, roughness: 0.9 });
+  [-0.4, 0.4].forEach(side => {
+    const arm = new THREE.Mesh(armGeo, armMat);
+    arm.position.set(side, 0.9, 0.28);
+    arm.rotation.z = side < 0 ? 0.5 : -0.5;
+    group.add(arm);
+  });
+
+  group.position.x = BARTENDER_X;
+  group.position.y = 0.09;
+  group.userData.bobPhase = 0;
+  group.frustumCulled = false;
+  scene.add(group);
+  bartenderMesh = group;
+  updateBartenderLane();
+}
+
+function updateBartenderLane() {
+  if (!bartenderMesh) return;
+  bartenderMesh.position.z = LANE_Y[bartenderLane];
+}
+
+function createCustomerMesh(laneIndex) {
+  const group = new THREE.Group();
+  const colors = [0x5c3a21, 0x8b0000, 0x556b2f, 0x2f4f4f]; // Western clothes
+  const bodyColor = colors[laneIndex % colors.length];
+
+  // Body
+  const bGeo = new THREE.CapsuleGeometry(0.32, 0.65, 4, 8);
+  const bMat = new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.9 });
+  const b = new THREE.Mesh(bGeo, bMat);
+  b.position.y = 0.85; group.add(b);
+
+  // Head
+  const hGeo = new THREE.SphereGeometry(0.26, 8, 8);
+  const hMat = new THREE.MeshStandardMaterial({ color: 0xF0C080, roughness: 0.6 });
+  const h = new THREE.Mesh(hGeo, hMat);
+  h.position.y = 1.6; group.add(h);
+
+  // Cowboy Hat Brim
+  const brimGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.05, 12);
+  const hatMat = new THREE.MeshStandardMaterial({ color: 0x3d2010, roughness: 0.9 });
+  const brim = new THREE.Mesh(brimGeo, hatMat);
+  brim.position.y = 1.8; group.add(brim);
+
+  // Cowboy Hat Top
+  const hatTopGeo = new THREE.CylinderGeometry(0.2, 0.22, 0.2, 10);
+  const hatTop = new THREE.Mesh(hatTopGeo, hatMat);
+  hatTop.position.y = 1.9; group.add(hatTop);
+
+  // Eyes
+  [-0.1, 0.1].forEach(ey => {
+    const eGeo = new THREE.SphereGeometry(0.04, 6, 6);
+    const eMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
+    const e = new THREE.Mesh(eGeo, eMat);
+    e.position.set(-0.26, 1.65, ey);
+    group.add(e);
+  });
+
+  group.rotation.y = Math.PI; // face the bartender
+  group.frustumCulled = false;
+  return group;
+}
+
+function createDrinkMesh() {
+  const group = new THREE.Group();
+
+  // Wooden Tankard body
+  const mugGeo = new THREE.CylinderGeometry(DRINK_RADIUS * 0.7, DRINK_RADIUS * 0.8, 0.55, 10);
+  const mugMat = new THREE.MeshStandardMaterial({ color: 0x654321, roughness: 0.9, metalness: 0.1 });
+  const mug = new THREE.Mesh(mugGeo, mugMat);
+  mug.position.y = 0.3;
+  group.add(mug);
+
+  // Metal Rings
+  const ringGeo = new THREE.CylinderGeometry(DRINK_RADIUS * 0.76, DRINK_RADIUS * 0.76, 0.05, 12);
+  const ringMat = new THREE.MeshStandardMaterial({ color: 0xaaaaaa, roughness: 0.4, metalness: 0.8 });
+  const ring1 = new THREE.Mesh(ringGeo, ringMat);
+  ring1.position.y = 0.15; group.add(ring1);
+  const ring2 = new THREE.Mesh(ringGeo, ringMat);
+  ring2.position.y = 0.45; group.add(ring2);
+
+  // Beer liquid & Foam
+  const foamGeo = new THREE.SphereGeometry(DRINK_RADIUS * 0.7, 8, 4);
+  const foamMat = new THREE.MeshStandardMaterial({ color: 0xFFF5DD, roughness: 0.9 });
+  const foam = new THREE.Mesh(foamGeo, foamMat);
+  foam.position.y = 0.56;
+  foam.scale.y = 0.4;
+  group.add(foam);
+
+  // Handle
+  const handleCurve = new THREE.QuadraticBezierCurve3(
+    new THREE.Vector3(0, 0.2, DRINK_RADIUS * 0.8),
+    new THREE.Vector3(0.35, 0.35, DRINK_RADIUS * 0.8),
+    new THREE.Vector3(0, 0.5, DRINK_RADIUS * 0.8)
+  );
+  const handleGeo = new THREE.TubeGeometry(handleCurve, 10, 0.04, 6, false);
+  const handleMat = new THREE.MeshStandardMaterial({ color: 0x654321, roughness: 0.9 });
+  const handle = new THREE.Mesh(handleGeo, handleMat);
+  group.add(handle);
+
+  group.frustumCulled = false;
+  return group;
+}
+
+function spawnCustomer(laneIndex) {
+  const speed = 0.8 + level * 0.15 + Math.random() * 0.3;
+  const mesh  = createCustomerMesh(laneIndex);
+  mesh.position.x = CUSTOMER_SPAWN_X;
+  mesh.position.y = 0.09;
+  mesh.position.z = LANE_Y[laneIndex];
+  scene.add(mesh);
+  customers.push({ mesh, lane: laneIndex, x: CUSTOMER_SPAWN_X, speed, served: false, bobPhase: Math.random() * Math.PI * 2, highlight: false });
+}
+
+function fireDrink() {
+  if (!gameRunning) return;
+  const drinkX = BARTENDER_X + 0.5;
+  const mesh   = createDrinkMesh();
+  mesh.position.x = drinkX;
+  mesh.position.y = 0.18;
+  mesh.position.z = LANE_Y[bartenderLane];
+  scene.add(mesh);
+  drinks.push({ mesh, lane: bartenderLane, x: drinkX });
+  showMiniPop('🍺', bartenderLane);
+}
+
+// ── INPUT ──────────────────────────────────────────────
+function handleKeyPress(code) {
+  if (!gameRunning || isPaused) return;
+  if (code === 'KeyW' || code === 'ArrowUp')   moveBartender(1);
+  if (code === 'KeyS' || code === 'ArrowDown') moveBartender(-1);
+  if (code === 'Space') { fireDrink(); }
+}
+
+document.getElementById('btn-up').addEventListener('touchstart', (e) => { e.preventDefault(); if(gameRunning && !isPaused) moveBartender(1); });
+document.getElementById('btn-down').addEventListener('touchstart', (e) => { e.preventDefault(); if(gameRunning && !isPaused) moveBartender(-1); });
+document.getElementById('btn-serve').addEventListener('touchstart', (e) => { e.preventDefault(); if(gameRunning && !isPaused) fireDrink(); });
+
+document.getElementById('btn-up').addEventListener('mousedown', (e) => { e.preventDefault(); if(gameRunning && !isPaused) moveBartender(1); });
+document.getElementById('btn-down').addEventListener('mousedown', (e) => { e.preventDefault(); if(gameRunning && !isPaused) moveBartender(-1); });
+document.getElementById('btn-serve').addEventListener('mousedown', (e) => { e.preventDefault(); if(gameRunning && !isPaused) fireDrink(); });
+document.getElementById('btn-pause').addEventListener('click', () => { togglePause(); document.getElementById('btn-pause').blur(); });
+
+function moveBartender(dir) {
+  const next = bartenderLane + dir;
+  if (next < 0 || next >= NUM_LANES) return;
+  bartenderLane = next;
+  updateBartenderLane();
+  // Snap any drinks on this lane that hit end
+}
+
+let isPaused = false;
+function togglePause() {
+  if (!gameRunning) return;
+  isPaused = !isPaused;
+  if (isPaused) {
+    document.getElementById('btn-pause').textContent = 'RIPRENDI';
+    document.getElementById('level-flash').textContent = 'IN PAUSA';
+    document.getElementById('level-flash').style.opacity = 1;
+    document.getElementById('level-flash').style.transition = 'none';
+  } else {
+    document.getElementById('btn-pause').textContent = 'PAUSA';
+    document.getElementById('level-flash').style.opacity = 0;
+    document.getElementById('level-flash').style.transition = 'opacity 0.5s';
+  }
+}
+
+// ── GAME LOOP ──────────────────────────────────────────
+function startGame() {
+  if (document.activeElement) document.activeElement.blur();
+  gameRunning = true;
+  isPaused = false;
+  document.getElementById('btn-pause').textContent = 'PAUSA';
+  score = 0; lives = 3; level = 1; combo = 0;
+  spawnTimer = 0; spawnInterval = 3.5;
+  bartenderLane = Math.floor(NUM_LANES / 2);
+
+  clearEntities();
+  createBartender();
+  updateHUD();
+  document.getElementById('start-overlay').classList.add('hidden');
+  document.getElementById('gameover-overlay').classList.add('hidden');
+  gameRunning = true;
+
+  if (frameId) cancelAnimationFrame(frameId);
+  clock.start();
+  loop();
+}
+
+function removeMesh(mesh) {
+  scene.remove(mesh);
+  mesh.traverse(child => {
+    if (child.isMesh) {
+      if (child.geometry) child.geometry.dispose();
+      if (child.material) {
+        if (Array.isArray(child.material)) child.material.forEach(m => m.dispose());
+        else child.material.dispose();
+      }
+    }
+  });
+}
+
+function clearEntities() {
+  [...drinks, ...mugs, ...customers, ...particles].forEach(e => removeMesh(e.mesh));
+  drinks = []; mugs = []; customers = []; particles = [];
+}
+
+function loop() {
+  frameId = requestAnimationFrame(loop);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  if (gameRunning && !isPaused) update(dt);
+  renderer.render(scene, camera);
+}
+
+function update(dt) {
+  spawnTimer += dt;
+  if (spawnTimer >= spawnInterval) {
+    spawnTimer = 0;
+    spawnWave();
+    spawnInterval = Math.max(1.8, spawnInterval - 0.01);
+  }
+
+  updateBartenderBob(dt);
+  updateDrinks(dt);
+  updateMugs(dt);
+  updateCustomers(dt);
+  updateParticles(dt);
+  checkCollisions();
+  animateBarGlow(dt);
+}
+
+function spawnWave() {
+  // Spawn 1‥2 customers in different lanes
+  const shuffled = [...Array(NUM_LANES).keys()].sort(() => Math.random() - 0.5);
+  const count = level >= 3 ? 2 : 1;
+  shuffled.slice(0, count).forEach(li => spawnCustomer(li));
+}
+
+function updateBartenderBob(dt) {
+  if (!bartenderMesh) return;
+  bartenderMesh.userData.bobPhase += dt * 4;
+  bartenderMesh.position.y = 0.09 + Math.sin(bartenderMesh.userData.bobPhase) * 0.04;
+}
+
+function updateDrinks(dt) {
+  drinks.forEach(d => {
+    d.x += DRINK_SPEED_BASE * dt;
+    d.mesh.position.x = d.x;
+    d.mesh.rotation.y += dt * 3;
+
+    // Off screen (right end) – wasted drink, no customer was there
+    if (d.x > CUSTOMER_SPAWN_X + 1) {
+      removeMesh(d.mesh);
+      d.removed = true;
+      // small penalty for wasted drink: lose combo
+      combo = 0;
+      updateComboHUD();
+    }
+  });
+  drinks = drinks.filter(d => !d.removed);
+}
+
+function updateMugs(dt) {
+  mugs.forEach(m => {
+    m.x -= MUG_RETURN_SPEED * dt;
+    m.mesh.position.x = m.x;
+    m.mesh.rotation.y += dt * 5;
+
+    // Reached bartender!
+    if (m.x <= BARTENDER_X - 0.5) {
+      removeMesh(m.mesh);
+      m.removed = true;
+      if (m.lane === bartenderLane) {
+        // Caught!
+        addScore(25);
+        combo++;
+        updateComboHUD();
+        spawnSparkle(m.mesh.position.x, m.mesh.position.z);
+        showScorePop('+25 PRESO!', m.mesh.position.x, m.mesh.position.z);
+      }
+    }
+  });
+  mugs = mugs.filter(m => !m.removed);
+}
+
+function updateCustomers(dt) {
+  customers.forEach(c => {
+    c.bobPhase += dt * 3;
+    c.x -= c.speed * dt;
+    c.mesh.position.x = c.x;
+    c.mesh.position.y = 0.09 + Math.sin(c.bobPhase) * 0.05;
+
+    // Angry color if close
+    if (c.x < BARTENDER_X + 4 && !c.highlight) {
+      c.highlight = true;
+      flashCustomerAngry(c.mesh);
+    }
+
+    // Reached bartender – lose a life
+    if (c.x <= BARTENDER_X) {
+      removeMesh(c.mesh);
+      c.removed = true;
+      loseLife();
+    }
+  });
+  customers = customers.filter(c => !c.removed);
+}
+
+function updateParticles(dt) {
+  particles.forEach(p => {
+    p.life -= dt;
+    if (p.life <= 0) { 
+      removeMesh(p.mesh); 
+      p.removed = true; 
+      return; 
+    }
+    p.mesh.position.x += p.vx * dt;
+    p.mesh.position.y += p.vy * dt;
+    p.mesh.position.z += p.vz * dt;
+    p.vy -= 2 * dt;
+    p.mesh.material.opacity = p.life / p.maxLife;
+  });
+  particles = particles.filter(p => !p.removed);
+}
+
+function animateBarGlow(dt) {
+  // Pulse bar trim emissive
+  const t = performance.now() / 1000;
+  barMeshes.forEach((m, i) => {
+    if (m.material && m.material.emissive) {
+      const intensity = 0.05 + 0.04 * Math.sin(t * 2 + i);
+      m.material.emissiveIntensity = intensity;
+    }
+  });
+}
+
+// ── COLLISION DETECTION ────────────────────────────────
+function checkCollisions() {
+  drinks.forEach(d => {
+    if (d.removed) return;
+    customers.forEach(c => {
+      if (c.removed || d.removed) return;
+      if (d.lane !== c.lane) return;
+      
+      const dist = Math.abs(d.x - c.x);
+      if (dist < 0.7) {
+        // HIT!
+        d.removed = true;
+        c.removed = true;
+        
+        removeMesh(d.mesh);
+        removeMesh(c.mesh);
+        
+        // Send mug back
+        const emptyMug = createEmptyMugMesh();
+        emptyMug.position.copy(c.mesh.position);
+        emptyMug.position.y = 0.18;
+        scene.add(emptyMug);
+        mugs.push({ mesh: emptyMug, lane: c.lane, x: c.x });
+
+        // Score
+        const pts = 10 * level;
+        addScore(pts);
+        combo++;
+        updateComboHUD();
+        levelUpCheck();
+        spawnSparkle(c.mesh.position.x, c.mesh.position.z);
+        showScorePop(`+${pts}`, c.mesh.position.x, c.mesh.position.z);
+      }
+    });
+  });
+
+  drinks = drinks.filter(d => !d.removed);
+  customers = customers.filter(c => !c.removed);
+}
+
+function createEmptyMugMesh() {
+  const group = new THREE.Group();
+  const mugGeo = new THREE.CylinderGeometry(DRINK_RADIUS*0.65, DRINK_RADIUS*0.75, 0.52, 10);
+  const mugMat = new THREE.MeshStandardMaterial({ color: 0x654321, roughness: 0.9, metalness: 0.1 });
+  const mug = new THREE.Mesh(mugGeo, mugMat);
+  mug.position.y = 0.26;
+  group.add(mug);
+  
+  // Metal ring
+  const ringGeo = new THREE.CylinderGeometry(DRINK_RADIUS * 0.7, DRINK_RADIUS * 0.7, 0.05, 12);
+  const ringMat = new THREE.MeshStandardMaterial({ color: 0xaaaaaa, roughness: 0.4, metalness: 0.8 });
+  const ring = new THREE.Mesh(ringGeo, ringMat);
+  ring.position.y = 0.26;
+  group.add(ring);
+
+  group.frustumCulled = false;
+  return group;
+}
+
+// ── SCORE & LIVES ──────────────────────────────────────
+function addScore(pts) {
+  const multiplier = combo >= 5 ? 3 : combo >= 3 ? 2 : 1;
+  score += pts * multiplier;
+  updateHUD();
+  if (score > bestScore) {
+    bestScore = score;
+    localStorage.setItem('tapperBest', bestScore);
+    updateHUD();
+  }
+}
+
+function loseLife() {
+  lives--;
+  combo = 0;
+  updateComboHUD();
+  updateHUD();
+  screenShake();
+  if (lives <= 0) gameOver();
+}
+
+function levelUpCheck() {
+  const required = level * 300 + (level * level * 50);
+  if (score > required) {
+    level++;
+    addScore(100);
+    showScorePop(`LEVEL UP!`, 0, 0);
+    document.getElementById('level-badge').textContent = `LIVELLO ${level}`;
+    showLevelFlash();
+  }
+}
+
+function updateHUD() {
+  document.getElementById('score-display').textContent = score.toLocaleString();
+  document.getElementById('best-display').textContent  = bestScore.toLocaleString();
+  const livesEl = document.getElementById('lives-display');
+  livesEl.innerHTML = '';
+  for (let i = 0; i < Math.max(lives, 0); i++) {
+    const h = document.createElement('span');
+    h.className = 'heart'; h.textContent = '🍺';
+    livesEl.appendChild(h);
+  }
+}
+
+function updateComboHUD() {
+  const el = document.getElementById('combo');
+  if (combo >= 2) {
+    el.textContent = `×${combo} COMBO!`;
+    el.style.opacity = '1';
+  } else {
+    el.style.opacity = '0';
+  }
+}
+
+// ── EFFECTS ────────────────────────────────────────────
+function spawnSparkle(x, z) {
+  const colors = [0xFFD700, 0xFF8800, 0x00FFAA, 0xFF44AA];
+  for (let i = 0; i < 12; i++) {
+    const geo = new THREE.SphereGeometry(0.06, 4, 4);
+    const mat = new THREE.MeshBasicMaterial({
+      color: colors[Math.floor(Math.random() * colors.length)],
+      transparent: true, opacity: 1,
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(x, 0.5, z);
+    scene.add(mesh);
+    const angle  = Math.random() * Math.PI * 2;
+    const speed  = 2 + Math.random() * 3;
+    particles.push({
+      mesh, life: 0.6 + Math.random() * 0.4, maxLife: 1,
+      vx: Math.cos(angle) * speed * 0.4,
+      vy: 3 + Math.random() * 4,
+      vz: Math.sin(angle) * speed,
+    });
+  }
+}
+
+function showScorePop(text, worldX, worldZ) {
+  // Project world position to screen
+  const vec = new THREE.Vector3(worldX, 1, worldZ);
+  vec.project(camera);
+  const sx = (vec.x * 0.5 + 0.5) * window.innerWidth;
+  const sy = (-vec.y * 0.5 + 0.5) * window.innerHeight;
+
+  const el = document.createElement('div');
+  el.className = 'score-pop';
+  el.textContent = text;
+  el.style.left = `${sx - 30}px`;
+  el.style.top  = `${sy - 20}px`;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 1000);
+}
+
+function showMiniPop(text, lane) {
+  const worldZ = LANE_Y[lane];
+  showScorePop(text, BARTENDER_X, worldZ);
+}
+
+function showLevelFlash() {
+  const container = document.getElementById('level-flash');
+  container.innerHTML = `<div class="level-flash-text">LIVELLO ${level}!</div>`;
+  container.style.opacity = '1';
+  setTimeout(() => { container.style.opacity = '0'; container.innerHTML = ''; }, 1600);
+}
+
+function screenShake() {
+  const intensity = 0.15;
+  const origPos = camera.position.clone();
+  let shakeTime = 0;
+  const shakeInterval = setInterval(() => {
+    shakeTime += 0.05;
+    camera.position.x = origPos.x + (Math.random() - 0.5) * intensity;
+    camera.position.y = origPos.y + (Math.random() - 0.5) * intensity;
+    if (shakeTime >= 0.4) {
+      clearInterval(shakeInterval);
+      camera.position.copy(origPos);
+    }
+  }, 50);
+}
+
+function flashCustomerAngry(mesh) {
+  // Flash red overlay
+  mesh.traverse(child => {
+    if (child.isMesh && child.material && child.material.isMeshStandardMaterial) {
+      const orig = child.material.emissive ? child.material.emissive.clone() : new THREE.Color(0);
+      child.material.emissive = new THREE.Color(0xFF0000);
+      child.material.emissiveIntensity = 0.5;
+      setTimeout(() => {
+        if (child.material) {
+          child.material.emissive.copy(orig);
+          child.material.emissiveIntensity = 0;
+        }
+      }, 300);
+    }
+  });
+}
+
+// ── GAME OVER ──────────────────────────────────────────
+function gameOver() {
+  gameRunning = false;
+  document.getElementById('final-score').textContent    = `PUNTEGGIO: ${score.toLocaleString()}`;
+  document.getElementById('best-score-display').textContent = `MIGLIORE: ${bestScore.toLocaleString()}`;
+  document.getElementById('gameover-overlay').classList.remove('hidden');
+}
+
+// ── RESIZE ─────────────────────────────────────────────
+function onResize() {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+// ── INIT ───────────────────────────────────────────────
+initThree();
+updateHUD();
+
+// Idle render loop before game starts
+(function idleLoop() {
+  if (!gameRunning) {
+    requestAnimationFrame(idleLoop);
+    renderer.render(scene, camera);
+  }
+})();
+</script>
+</body>
+</html>
